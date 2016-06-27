@@ -28,8 +28,10 @@ public class BulkAPIGenerateErrorLogs {
         //Process Batch IDs
         if(!batchIds.isEmpty()) {
             for(String bID : batchIDs) {
+				system.debug('BID: ' + bID);
                 XmlStreamReader xsr = new XmlStreamReader(retrieveBatchResultResponse(bID, jobID));
                 strErrorLogs += parseXML(xsr, bID,jobId);
+				system.debug('strErrorLogs ' + strErrorLogs);
             }
         }
            
@@ -152,6 +154,7 @@ public class BulkAPIGenerateErrorLogs {
            
             if(reader.getEventType() == XmlTag.START_ELEMENT) {
                 if('result' == reader.getLocalName()) {
+                    
                     resultCounter += 1;
                     ErrorLog errLog = parseError(reader);
                     errLog.Location = resultCounter;
@@ -191,16 +194,24 @@ public class BulkAPIGenerateErrorLogs {
         //errLog.errorMess = reader.getText();
         
         boolean isSafeToGetNextElement = true;
-        while(isSafeToGetNextElement){            
+        while(isSafeToGetNextElement){ 
             if(reader.getLocalName() == 'result' && reader.isEndElement()) {
                 break;
             } else if(reader.getLocalName() == 'errors' && reader.isStartElement()) {
-                reader.next();
-				//Next Node - Message
-                if(reader.getLocalName() == 'message' && reader.isStartElement()) {
+                while(!(reader.getLocalName() == 'errors' && reader.isEndElement())) {
                     reader.next();
-                    if(reader.isCharacters() && reader.getText() != null) {
-                        errLog.errorMess = reader.getText();
+                    //Next Node - Message
+                    if(reader.getLocalName() == 'fields' && reader.isStartElement()) {
+                        reader.next();
+                        if(reader.isCharacters() && reader.getText() != null) {
+                            errLog.errorMess = reader.getText();
+                        }
+                    }
+                    if(reader.getLocalName() == 'message' && reader.isStartElement()) {
+                        reader.next();
+                        if(reader.isCharacters() && reader.getText() != null) {
+                            errLog.errorMess += reader.getText();
+                        }
                     }
                 }
             }
@@ -212,7 +223,7 @@ public class BulkAPIGenerateErrorLogs {
                 break;
             }
         }
-
+		system.debug('ERRLOG: ' + errLog);
         return errLog;
     }
 
